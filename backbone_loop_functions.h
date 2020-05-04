@@ -1,3 +1,5 @@
+//Author: Taylor Bergeron
+
 #ifndef BACKBONE_LOOP_FUNCTIONS_H
 #define BACKBONE_LOOP_FUNCTIONS_H
 
@@ -5,6 +7,10 @@
 #include <argos3/core/simulator/entity/floor_entity.h>
 #include <argos3/core/utility/math/range.h>
 #include <argos3/core/utility/math/rng.h>
+// #include <controllers/ci_ground_sensor.h>
+// #include <argos3/core/control_interface/ci_controller.h>
+// #include <argos3/core/control_interface/ci_ground_sensor.h>
+// #include <argos3/core/control_interface/ci_kheperaiv_ground_sensor.h>
 
 using namespace argos;
 

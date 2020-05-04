@@ -1,0 +1,162 @@
+#Author: Taylor Bergeron
+
+v = stigmergy.create(1)
+s = swarm.create(1)
+#in_backbone = 0.0
+var min_robot_id_final = -1.0
+
+function init() {
+	#v = stigmergy.create(1)
+	s.join()
+    x1 = 0.0
+	y1 = 0.0
+	yaw1 = 0.0
+    var info = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = 0.0 }
+    v.put(id, info)
+    timestep = 0
+}
+
+function step() {
+
+    i = v.get(id)
+    in_backbone = i.in_backbone
+    var gps = determine_gps()
+    if(gps==0.0){
+        #this is where shape eploration and estimation would go
+        set_wheels(0.0,0.0)
+        #neighbors.broadcast("need_backbone", 1.0)
+
+        var last_info = v.get(id)
+        #log(last_info)
+        var last_pos_x = last_info.x
+        var last_pos_y = last_info.y
+        var last_yaw = last_info.yaw
+        var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = -1.0 }
+        #log(last_pos_x, last_pos_y)
+
+        closest_id = get_closest_id(last_pos_x, last_pos_y)
+			log("returned id is: ", closest_id)
+
+
+    }
+    if(gps==1.0){
+        x1 = pose["position"]["x"]
+    	y1 = pose["position"]["y"]
+    	yaw1 = pose["orientation"]["yaw"]
+
+        neighbors.broadcast("free", 1.0)
+
+		obstacle_avoidance()
+
+        var info = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = 0.0 }
+        v.put(id, info)
+
+        # if (in_backbone == 0.0){
+        #     neigbors.broadcast("free", 1.0)
+        #     obstacle_avoidance()
+        # }
+        # else if (in_backbone == 0.5){
+        #     #go to position
+        # }
+        # else{
+        #     set_wheels(0.0,0.0)
+        # }
+    }
+
+}
+
+# function connect_backbone(){
+#
+# }
+
+function get_closest_id(last_x, last_y){
+
+    min_dist = 100000.0
+    #var min_robot_id_final = -1.0
+
+    neighbors.listen("free",
+        function(vid, value, rid) {
+            #log("id: ", rid, " pos x: ", value)
+            # var neighbor_info = v.get(rid)
+            # neighbor_in_backbone = neighbor_info.in_backbone
+            # if(neighbor_in_backbone==0.0){
+            #     difference_x = last_x - neighbor_info.x
+            #     difference_y = last_y - neighbor_info.y
+            # }
+            neighbors.foreach(
+                function(robotid, data) {
+                if(rid==robotid){
+                    log(id," to ", robotid, " is ", data.distance)
+                    if (data.distance < min_dist){
+                        log(id," to ", robotid, " is min from ", min_dist)
+                        min_dist = data.distance
+                        min_robot_id = robotid
+                    }
+                } })
+            #log("The min robot is: ", min_robot_id)
+            min_robot_id_final = min_robot_id
+        })
+		#log(min_robot_id_final)
+		return min_robot_id_final
+}
+
+function determine_gps(){
+	var bottom_val = ground[0]["value"]
+	var gps= 1.0
+    if (bottom_val < 1.0){
+        gps = 0.0
+    }
+    return gps
+
+}
+
+function obstacle_avoidance(){
+	var magnitude = 5.0
+	var obstacle = read_proximity()
+	x = magnitude * math.cos(math.pi + obstacle)
+	y = magnitude * math.sin(math.pi + obstacle)
+
+	#if angle behind robot, ignore
+	if (obstacle == -math.pi){
+		#nothing is detected
+		set_wheels(magnitude, magnitude)
+	}
+	else {
+		#something is detected
+		#isolate cases near 0 to avoid errors
+		if (x<0.000001 and x>-0.000001){
+			x=0
+		}
+		if (y<0.000001 and y>-0.000001){
+			y=0
+		}
+
+		#sets center of the mass of the robot to half x and half y
+		#log(id, ": speedx: ",x," speed y: ", y)
+		gotoc(x/2, y/2)
+
+	}
+}
+
+function read_proximity(){
+	var counter = 0.0
+	var max_reading = 0.0
+	var obstacle_angle = -math.pi
+
+	while (counter < 8.0){
+		var sensor_val = proximity[counter].value
+		var sensor_angle = proximity[counter].angle
+		if(sensor_val > max_reading){
+			max_reading = sensor_val
+			obstacle_angle = sensor_angle
+			#log("Obstacle infront of robot ", id, " at sensor ", counter)
+		}
+		counter = counter + 1.0
+	}
+	return obstacle_angle
+
+}
+
+function destroy(){}
+
+function reset(){}

@@ -1,7 +1,12 @@
+//Author: Taylor Bergeron
 #include "backbone_loop_functions.h"
 #include <argos3/core/simulator/simulator.h>
 #include <argos3/core/utility/configuration/argos_configuration.h>
 #include <argos3/plugins/robots/foot-bot/simulator/footbot_entity.h>
+// #include <controllers/ci_ground_sensor.h>
+// #include <argos3/core/control_interface/ci_controller.h>
+// #include <argos3/core/control_interface/ci_ground_sensor.h>
+// #include <argos3/core/control_interface/ci_kheperaiv_ground_sensor.h>
 
 CBackboneLoopFunctions::CBackboneLoopFunctions() :
    m_pcFloor(NULL){
