@@ -11,7 +11,7 @@ function init() {
     x1 = 0.0
 	y1 = 0.0
 	yaw1 = 0.0
-    var info = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = 0.0 }
+    var info = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = 0.0}
     v.put(id, info)
     timestep = 0
 }
@@ -20,6 +20,9 @@ function step() {
 
     i = v.get(id)
     in_backbone = i.in_backbone
+    if(id==6){
+        log("6: ", in_backbone)
+    }
     var gps = determine_gps()
     if(gps==0.0){
         #this is where shape eploration and estimation would go
@@ -31,11 +34,35 @@ function step() {
         var last_pos_x = last_info.x
         var last_pos_y = last_info.y
         var last_yaw = last_info.yaw
-        var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = -1.0 }
+        var last_backbone = last_info.in_backbone
+        #var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = -1.0}
         #log(last_pos_x, last_pos_y)
 
-        closest_id = get_closest_id(last_pos_x, last_pos_y)
-			log("returned id is: ", closest_id)
+        if(in_backbone == 0.0){
+            closest_id = get_closest_id(last_pos_x, last_pos_y)
+    		log(id, " chose ", closest_id)
+            if(closest_id != -1){
+                log(id, " is adding ", closest_id, " to backbone")
+                var other_robots_info = v.get(closest_id)
+                var other_pos_x = other_robots_info.x
+                var other_pos_y = other_robots_info.y
+                var other_yaw = other_robots_info.yaw
+                var new_other_robot_info = { .x=other_pos_x, .y=other_pos_y, .yaw=other_yaw, .in_backbone = 1.0}
+                v.put(closest_id, new_other_robot_info)
+                if(closest_id==6){
+                    var in_six = v.get(6)
+                    sixb = in_six.in_backbone
+                    log("6 got from v: ", sixb)
+                }
+
+                var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = 1.0}
+                v.put(id, no_gps_info)
+            }
+        }
+        else{
+            #var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = 0.0}
+            #v.put(id, no_gps_info)
+        }
 
 
     }
@@ -44,23 +71,35 @@ function step() {
     	y1 = pose["position"]["y"]
     	yaw1 = pose["orientation"]["yaw"]
 
-        neighbors.broadcast("free", 1.0)
+        # neighbors.broadcast("free", 1.0)
 
-		obstacle_avoidance()
+		# obstacle_avoidance()
 
-        var info = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = 0.0 }
-        v.put(id, info)
+        var infoo = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = in_backbone}
+        v.put(id, infoo)
 
-        # if (in_backbone == 0.0){
-        #     neigbors.broadcast("free", 1.0)
-        #     obstacle_avoidance()
-        # }
+        if(in_backbone == 0.0){
+            #chilling, walking around
+            neighbors.broadcast("free", 1.0)
+            obstacle_avoidance()
+        }
         # else if (in_backbone == 0.5){
-        #     #go to position
+        #     #going to be a part of the backbone
+        #     neighbors.broadcast("going to backbone")
+        #     following = i.following
+        #     var following_robot_info = v.get(following)
+        #     var following_pos_x = following_robot_info.x
+        #     var following_pos_y = following_robot_info.y
+        #     var following_yaw = following_robot_info.yaw
+        #
         # }
-        # else{
-        #     set_wheels(0.0,0.0)
-        # }
+        else{
+            #successfully part of the backbone DONT MOVE
+            # right now, just have robot stop
+            log(id, " is in backbone")
+            neighbors.broadcast("in_backbone", 1.0)
+            set_wheels(0.0,0.0)
+        }
     }
 
 }
@@ -86,9 +125,9 @@ function get_closest_id(last_x, last_y){
             neighbors.foreach(
                 function(robotid, data) {
                 if(rid==robotid){
-                    log(id," to ", robotid, " is ", data.distance)
+                    #log(id," to ", robotid, " is ", data.distance)
                     if (data.distance < min_dist){
-                        log(id," to ", robotid, " is min from ", min_dist)
+                        #log(id," to ", robotid, " is min from ", min_dist)
                         min_dist = data.distance
                         min_robot_id = robotid
                     }
