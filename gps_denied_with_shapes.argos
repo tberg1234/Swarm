@@ -35,6 +35,7 @@
                                show_rays="true" noise_std_dev="0" />
           <positioning         implementation="default" />
           <kheperaiv_ground implementation="rot_z_only" />
+          <kheperaiv_light   implementation="rot_z_only" />
         </sensors>
         <params>
           <wheel_turning hard_turn_angle_threshold="90"
