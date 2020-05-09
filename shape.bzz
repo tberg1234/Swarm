@@ -1,0 +1,100 @@
+include "vec2.bzz"
+TARGET    = 35.0
+EPSILON   = 70.0
+function sum_light(rid , data , accum) {
+	lvec = math.vec2.newp(data.value , data.angle)
+	return math.vec2.add(lvec , accum)
+}
+
+function follow_light() {
+	light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+    # light_vector = light_vector*20
+  goto(light_vector.x*10 , light_vector.y*10 )
+
+
+}
+
+function lj_magnitude(dist, target, epsilon) {
+  return -(epsilon / dist) * ((target / dist)^4 - (target / dist)^2)
+}
+
+# Neighbor data to LJ interaction vector
+function lj_vector_kin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET, EPSILON), data.azimuth)
+}
+
+# Accumulator of neighbor LJ interactions
+function lj_sum(rid, data, accum) {
+  return math.vec2.add(data, accum)
+}
+# function hexagon() {
+#   # Calculate accumulator
+#   var accum = neighbors.map(lj_vector).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+#   if(neighbors.count() > 0)
+#     math.vec2.scale(accum, 1.0 / neighbors.count())
+#   # Move according to vector
+#   goto(accum.x, accum.y)
+# }
+
+function obs_av()
+{
+  if(proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0)
+  gotop(0.0,2.0)
+
+  else
+  gotop(5.0,0.1)
+}
+
+function cell_lattice() {
+  # Calculate accumulator
+  # if
+  # if(proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0)
+  # gotop(0.0,2.0)
+  # {
+  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  # accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+  if(neighbors.count() > 0)
+    math.vec2.scale(accum, 1.0 / neighbors.count())
+  # Move according to vector
+  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+  goto((accum.x + light_vector.x)*10, (accum.y + light_vector.y)*10)
+  # }
+  # else{
+  # goto(accum.x, accum.y)
+  # }
+
+}
+function init() {
+
+  s1 = swarm.create(1)
+  s1.select(id <8)
+
+
+  # if(s1.in()){ set_wheels(0.2,0.1)}
+  a = 1
+
+}
+
+function step() {
+
+    if(a<800){
+    s1.exec(obs_av)
+    a = a + 1
+    }
+    else {
+    s1.exec(cell_lattice)
+    a = a+1
+    }
+    # a=a+1
+    # else{
+    # s1.exec(hexagon)
+    # a=a+1
+    # }
+  #
+# s1.exec(cell_lattice)
+}
+
+function destroy()
+{
+
+}
