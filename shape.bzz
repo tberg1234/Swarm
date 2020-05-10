@@ -1,3 +1,4 @@
+#Author: Adhitya
 include "vec2.bzz"
 TARGET    = 35.0
 EPSILON   = 70.0
@@ -27,14 +28,7 @@ function lj_vector_kin(rid, data) {
 function lj_sum(rid, data, accum) {
   return math.vec2.add(data, accum)
 }
-# function hexagon() {
-#   # Calculate accumulator
-#   var accum = neighbors.map(lj_vector).reduce(lj_sum, math.vec2.new(0.0, 0.0))
-#   if(neighbors.count() > 0)
-#     math.vec2.scale(accum, 1.0 / neighbors.count())
-#   # Move according to vector
-#   goto(accum.x, accum.y)
-# }
+
 
 function obs_av()
 {
@@ -44,26 +38,45 @@ function obs_av()
   else
   gotop(5.0,0.1)
 }
+function gps_den()
+{
+	var bottom_val = ground[1]["value"]
+	if (bottom_val < 1.0){
 
-function cell_lattice() {
-  # Calculate accumulator
-  # if
-  # if(proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0)
-  # gotop(0.0,2.0)
-  # {
-  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
-  # accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
-  if(neighbors.count() > 0)
-    math.vec2.scale(accum, 1.0 / neighbors.count())
-  # Move according to vector
-  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
-  goto((accum.x + light_vector.x)*10, (accum.y + light_vector.y)*10)
-  # }
-  # else{
-  # goto(accum.x, accum.y)
-  # }
+        if(((proximity[0].value != 0 and (proximity[0].angle==light[0].angle)) or (proximity[1].value != 0 and (proximity[1].angle==light[1].angle)) or (proximity[2].value != 0 and (proximity[2].angle==light[2].angle)) or (proximity[6].value != 0 and (proximity[6].angle==light[6].angle)) or (proximity[7].value != 0 and (proximity[7].angle==light[7].angle))) )
 
+        # if(((proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0) )
+	    {
+		gotop(0.0,0.0)
+		}
+
+    }
+	else if(bottom_val == 1.0)
+	obs_av()
 }
+# function cell_lattice() {
+#   # Calculate accumulator
+#   # if
+#   # if(proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0)
+#   # gotop(0.0,2.0)
+#   # {
+#   if(proximity[0].value == 0 or proximity[1].value == 0 or proximity[2].value == 0 or proximity[6].value == 0 or proximity[7].value == 0)
+#   {
+# 	  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+# 	  # accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+# 	  if(neighbors.count() > 0)
+# 	    math.vec2.scale(accum, 1.0 / neighbors.count())
+# 	  # Move according to vector
+# 	  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+# 	  goto((accum.x + light_vector.x)*10, (accum.y + light_vector.y)*10)
+#   # }
+#   # else{
+#   # goto(accum.x, accum.y)
+#   # }
+# }
+# 	else
+# 	{set_wheels(0.0,0.0)}
+# }
 function init() {
 
   s1 = swarm.create(1)
@@ -77,12 +90,12 @@ function init() {
 
 function step() {
 
-    if(a<800){
+    if(a<100){
     s1.exec(obs_av)
     a = a + 1
     }
     else {
-    s1.exec(cell_lattice)
+    s1.exec(gps_den)
     a = a+1
     }
     # a=a+1
