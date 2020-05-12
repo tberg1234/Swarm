@@ -1,0 +1,382 @@
+include "vec2.bzz"
+include "rotation.bzz"
+# Lennard-Jones parameters
+TARGET_KIN     = 50.0
+EPSILON_KIN    = 500.0
+TARGET_NONKIN  = 40.0
+EPSILON_NONKIN = 100.0
+ROBOTS = 6
+side = ROBOTS
+# Lennard-Jones interaction magnitude
+function lj_magnitude(dist, target, epsilon) {
+  return -(epsilon / dist) * ((target / dist)^4 - (target / dist)^2)*0.01
+}
+ 
+# Neighbor data to LJ interaction vector
+function lj_vector_kin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_KIN, EPSILON_KIN), data.azimuth)
+}
+ 
+# Neighbor data to LJ interaction vector
+function lj_vector_nonkin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_NONKIN, EPSILON_NONKIN), data.azimuth)
+}
+ 
+# Accumulator of neighbor LJ interactions
+function lj_sum(rid, data, accum) {
+  return math.vec2.add(data, accum)
+}
+
+# Calculate a vector based on light sensor readings
+function sum_light(rid , data , accum) {
+  lvec = math.vec2.newp(data.value , data.angle)
+  return math.vec2.add(lvec , accum)
+}
+
+# Light Following Function
+function follow_light () {
+tar_vec = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+#debug.rays.clear()
+#tar_vec = sum_light()
+if (proximity[0].value > 0.0)
+		{
+			
+			log("reached")
+			}
+goto((tar_vec.x)*4000, (tar_vec.y)*4000)
+
+#gotoc(5,5)
+}#--End_follow_light
+
+# Calculates and actuates the flocking interaction
+function cell() {
+  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+  # Calculate accumulator
+  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+  if(neighbors.count() > 0)
+    math.vec2.scale(accum, 1.0 / neighbors.count())
+  # Move according to vector
+  goto((accum.x + light_vector.x)*40, (accum.y + light_vector.y)*40)
+}
+
+# Calculates and actuates the flocking interaction
+function cell2() {
+  # Calculate accumulator
+  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+  if(neighbors.count() > 0)
+    math.vec2.scale(accum, 1.0 / neighbors.count())
+  # Move according to vector
+  goto((accum.x )*100, (accum.y )*100)
+}
+
+function collapseformation(){
+#compute distance
+	distance = math.sqrt((x - pose.position.x) * (x - pose.position.x) + (y - pose.position.y) * (y - pose.position.y) + (z - pose.position.z) * (z - pose.position.z))
+#compute angle
+angle = math.atan((y - pose.position.y), (x - pose.position.x)) - pose.orientation.yaw
+#get vector
+var vector = math.vec2.newp(distance, angle)
+#go to 
+
+goto(vector.x, vector.y)
+#log("cf")
+
+}
+
+var i = 0
+function MoveABit(){
+
+		#log("Move a bit")
+		if (proximity[1].value !=0 and proximity[2].value !=0 and proximity[3].value !=0 )
+			{
+				gotop(-0.01,0.01)
+    		log("turn")
+				}
+		else{ 
+  		goto(0.5,0.0)}
+i = i+1
+}#--End_MoveABit
+
+function map_obj(){
+	#log("Mapping Object...")
+	MoveABit()
+  }#--End_map_obj
+
+function getshape(){
+var j1 = 0
+var j2 = 0
+
+
+while (j1<ROBOTS){ 
+	  while(j2<ROBOTS){
+
+
+
+		  if (angle<1.65 and angle>1.48) #95deg - 85deg
+				   {side = side+1}
+
+		
+           j2 = j2+1
+           }#w2
+j1 =j1+1
+log("side",side)
+}#w1
+}
+
+function getslope(id1,id2){
+  var pose1 = {.x=0,.y=0}
+  var pose2 = {.x=0,.y=0}
+	if (id == id1){
+     pose1.x =  pose.position.x
+     pose1.y =  pose.position.y
+		 }
+	if (id == id2){
+     pose2.x =  pose.position.x
+     pose2.y =  pose.position.y
+		 }
+  slope = math.atan((pose2.y - pose1.y),(pose2.x - pose1.x))
+
+return slope
+}
+
+   var pose1 = {.x=0,.y=0}
+ 	 var pose2 = {.x=0,.y=0}
+function ShapeEstimation(){
+var j1 = 0
+var j2 = 0
+while (j1<ROBOTS)
+{   
+
+		if (id == j1){
+   		  pose1.x =  pose.position.x
+        pose1.y =  pose.position.y
+		 }
+	  while(j2<ROBOTS)
+    {
+
+	  if (id == j2 and id!=j1){
+     pose2.x =  pose.position.x
+     pose2.y =  pose.position.y
+		 }
+     #log(pose1.x,"",pose1.y,"",j1,"   ",pose2.x,"",pose2.y,"",j2)
+    closeness = math.sqrt((pose2.y - pose1.y)^2+(pose2.x - pose1.x)^2)
+#log("closeness ",j1," ",j2," :",closeness)
+    if (closeness < 0.005){
+    side = side-1
+    
+     #log("object-sides: ",side)
+     }
+
+			j2 = j2 +1
+     }
+j1 = j1+1
+}
+
+
+
+
+
+
+
+}
+
+
+
+
+
+
+
+#$$$$$$$$$$$$$$$$$$$$$$$$
+function vec2_new_polar(length, angle) {
+   var vec2 = {.x = length * math.cos(angle), .y = length * math.sin(angle)}
+   return vec2
+}
+
+
+function vec2_angle(v) {
+   return math.atan2(v.y, v.x)
+}
+
+function getshape2(){
+	var j1 = 0
+	var j2 = 0
+	var pose1 = 0
+	var side = 0
+	while (j1<ROBOTS){
+ 		 v1 = vec2_new_polar(2, math.pi/3)
+ 		 log("rid - ",j1,":",pose.orientation.yaw)
+		while(j2<ROBOTS){
+  			v2 = vec2_new_polar(2, math.pi/3)
+
+				angle = vec2_angle(v1)
+				log("angle",angle)
+
+		   if (angle<1.65 and angle>1.48) #95deg - 85deg
+				{side = side+1}
+
+				#if (id == j)
+				#{log("rid - ",j,":",pose.orientation.yaw)}
+     	 j2 = j2+1
+      }#w2
+		j1 =j1+1
+		log("side",side)
+}#w1
+}
+
+
+
+
+
+
+
+
+
+# Executed at init time
+function init() {
+  # Divide the swarm in two sub-swarms
+  s1 = swarm.create(1)
+  s1.select(id % 1 == 0)
+  #s2 = s1.others(2)
+	#counter = 0
+
+  if (s1.in () ){ set_leds(255,0,0) }
+  #if (s2.in () ){ set_leds(0,255,0) }
+
+	x = 0.5	
+	y = 0.5
+	z = 0.0
+  
+  #var pose1 = {.x=0,.y=0}
+  #var pose2 = {.x=0,.y=0}
+
+# Local knowledge table
+  knowledge = {}
+  statef = rotate
+  dists()
+  # Update local knowledge with information from the neighbors
+  listen_to_your_neighborhood()
+#create a new virtual stigmergy
+v = stigmergy.create(1)
+
+}
+
+var counter = 0
+# Executed every time step
+function step() {
+
+	if(counter<300)
+	{
+  	s1.exec(cell)
+     #inform_your_neighborhood()
+    # neighbors.broadcast("key", data.distance) 
+    # neighbors.listen("key",
+   #     function(vid, distance, rid) {
+  #    log("Got (", vid, ",", value, ") from robot ", rid)
+ #  }
+#)
+#     log(mydist)
+
+		v.put("position", pose.position)
+		v.put("orientation", pose.orientation)
+
+
+
+
+     log("pose : ",pose.position.x)
+
+
+
+     #neighbors.broadcast("dist_to_source", mydist) 
+     
+     #log(read_knowledge(knowledge, robot_id, 1))
+    #log(neighbors.get(robot_id).distance)
+     
+     #rid = 0 
+     dist1 = read_knowledge(knowledge, rid, 2,value)
+     #rid = 1 
+     #dist2 = read_knowledge(knowledge, rid, 2)
+     #log("dist :",dist1)
+     #log("dist :",dist2)
+
+
+
+
+
+
+
+
+	}
+	else
+	{
+      if (proximity[0].value ==0 ){
+			s1.exec(collapseformation)
+			 }
+
+      if (proximity[0].value ==1 and proximity[1].value ==1 and proximity[7].value ==1){
+			set_leds(0,255,0)
+			#map_obj()
+			cell2()
+			goto(0.01,0)
+			mydist = 0
+			}
+	 	 
+     if (counter>2000 and counter<2005){
+		 		goto(0.0,0.0)
+     		ShapeEstimation()
+          }
+
+
+
+
+
+     if (counter>2000)
+      {set_leds(0,0,255)}
+   }
+
+
+
+
+#if (id == 2){
+
+#}
+##if (id == 3){
+#log(pose.position.x)
+#}
+#getshape()
+#getshape2()
+
+
+
+#neighbors.broadcast("key", mydist)
+#neighbors.listen("key",
+#   function(vid, value, rid) {
+      #log("Got (", vid, ",", value, ") from robot ", rid)
+ #  }
+#)
+
+
+
+
+#  NEIGHBORS MAP func. check
+
+
+
+		
+		#if(proximity[0].value == 0)
+		#{
+			#s1.exec(cell2)
+			#log("qqqq")
+			#log(proximity[0].value)
+		#}
+		#s1.exec(follow_light)
+
+
+  #s2.exec(s2cell)
+	counter = counter + 1
+}
+ 
+# Execute at exit
+function destroy() {
+}

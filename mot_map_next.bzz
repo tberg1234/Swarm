@@ -1,0 +1,182 @@
+include "vec2.bzz"
+ 
+# Lennard-Jones parameters
+TARGET_KIN     = 100.0
+EPSILON_KIN    = 500.0
+TARGET_NONKIN  = 400.0
+EPSILON_NONKIN = 100.0
+
+# Lennard-Jones interaction magnitude
+function lj_magnitude(dist, target, epsilon) {
+  return -(epsilon / dist) * ((target / dist)^4 - (target / dist)^2)*0.01
+  
+}
+ 
+# Neighbor data to LJ interaction vector
+function lj_vector_kin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_KIN, EPSILON_KIN), data.azimuth)
+}
+ 
+# Neighbor data to LJ interaction vector
+function lj_vector_nonkin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_NONKIN, EPSILON_NONKIN), data.azimuth)
+}
+ 
+# Accumulator of neighbor LJ interactions
+function lj_sum(rid, data, accum) {
+  return math.vec2.add(data, accum)
+}
+
+# Calculate a vector based on light sensor readings
+function sum_light(rid , data , accum) {
+  lvec = math.vec2.newp(data.value , data.angle)
+  return math.vec2.add(lvec , accum)
+}
+
+# Light Following Function
+function follow_light () {
+tar_vec = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+#debug.rays.clear()
+#tar_vec = sum_light()
+if (proximity[0].value > 0.0)
+		{
+			
+			log("reached")
+			}
+goto((tar_vec.x)*4000, (tar_vec.y)*4000)
+
+#gotoc(5,5)
+}#--End_follow_light
+
+# Calculates and actuates the flocking interaction
+function cell() {
+  	light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+  	# Calculate accumulator
+  	var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  	accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+  	#if(neighbors.count() > 0)
+    #		math.vec2.scale(accum, 1.0 / neighbors.count())
+  	# Move according to vector
+  	goto((accum.x + light_vector.x)*100, (accum.y + light_vector.y)*100)
+}
+
+# Calculates and actuates the flocking interaction
+function cell2() {
+  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+  # Calculate accumulator
+  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  accum = - neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+  if(neighbors.count() > 0)
+    math.vec2.scale(accum, 1.0 / neighbors.count())
+  # Move according to vector
+  goto((accum.x + light_vector.x)*100, (accum.y + light_vector.y)*100)
+}
+
+function collapseformation(){
+#compute distance
+	distance = math.sqrt((x - pose.position.x) * (x - pose.position.x) + (y - pose.position.y) * (y - pose.position.y) + (z - pose.position.z) * (z - pose.position.z))
+#compute angle
+angle = math.atan((y - pose.position.y), (x - pose.position.x)) - pose.orientation.yaw
+#get vector
+var vector = math.vec2.newp(distance, angle)
+#go to 
+goto(vector.x, vector.y)
+log("cf")
+
+}
+
+var i = 0
+function MoveABit(){
+
+#log("Move a bit")
+#if (proximity[1].value !=1 and proximity[2].value !=1 and proximity[3].value !=1 and proximity[5].value !=0 and proximity[6].value !=0 and proximity[7].value !=0)
+	
+if (proximity[1].value !=1 and proximity[2].value !=1 and proximity[3].value !=1){
+		gotop(-0.01,0.01)
+    log("turn")
+				}
+#if (proximity[1].value ==1 and proximity[2].value ==1 and proximity[3].value ==1 and proximity[5].value ==0 and proximity[6].value ==0 and proximity[7].value ==0)
+
+if (proximity[1].value ==1 and proximity[2].value ==1 and proximity[3].value ==1) {
+set_leds(0,0,255)
+	gotop(0,0)
+
+}
+
+i = i+1
+}#--End_MoveABit
+function map_obj(){
+#log("Mapping Object...")
+MoveABit()
+}#--End_map_obj
+
+
+
+
+# Executed at init time
+function init() {
+  # Divide the swarm in two sub-swarms
+  s1 = swarm.create(1)
+  s1.select(id % 1 == 0)
+  #s2 = s1.others(2)
+	#counter = 0
+
+  if (s1.in () ){ set_leds(255,0,0) }
+  #if (s2.in () ){ set_leds(0,255,0) }
+
+x = 0.5
+y = 0.5
+z = 0.0
+
+
+}
+
+var counter = 0
+var reached = 0
+# Executed every time step
+function step() {
+
+if(counter<300)
+	{
+  	s1.exec(cell)
+	}
+	else
+	{
+		if (reached == 0){
+					s1.exec(collapseformation)
+ 					   if (proximity[0].value ==1)
+					   {
+						  set_leds(0,255,0)
+						  reached = 1
+					    }
+	  }
+
+if (reached == 1)
+	{
+	map_obj()
+	}	
+
+	counter = counter + 1
+}
+
+
+}
+
+	
+	#log(pose.position)
+		
+		#if(proximity[0].value == 0)
+		#{
+			#s1.exec(cell2)
+			#log("qqqq")
+			#log(proximity[0].value)
+		#}
+		#s1.exec(follow_light)
+
+
+  #s2.exec(s2cell)
+
+ 
+# Execute at exit
+function destroy() {
+}
