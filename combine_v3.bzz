@@ -1,9 +1,15 @@
+#Author: Taylor Bergeron
+
 include "include/vec2.bzz"
 
 v = stigmergy.create(1)
 #s = swarm.create(1)
 #in_backbone = 0.0
 var min_robot_id_final = -1.0
+var max_robot_id_final = -1.0
+max_robot_distance_final = -1.0
+backbone_dist = 0.0
+backbone_azimuth = 0.0
 
 # Lennard-Jones parameters
 TARGET_KIN     = 50.0
@@ -120,8 +126,39 @@ function step() {
 
 			if(perimeter_counter > 2.0){
 				log("making cell ", id, " ", perimeter_counter)
+				neighbors.broadcast("finding_light", 1.0)
 				var a = findlight()
 				goto(a.x, a.y)
+
+				finding_light_farthest_info = get_furthest_id()
+				if(finding_light_farthest_info.id != -1){
+					log(id, " is farthest away from ", finding_light_farthest_info.id)
+					area = (finding_light_farthest_info.distance * finding_light_farthest_info.distance)/2
+					log(id, " area calc: ", area)
+
+					b_info = get_info_from_backbone()
+					log(id, ": b distance ", b_info.distance, " b azimuth ", b_info.azimuth)
+
+					c = finding_light_farthest_info.distance
+					n = c/(2*math.sqrt(2))
+
+					if(b_info.distance != 0){
+						az = b_info.azimuth
+						dis = b_info.distance
+
+						my_x = dis*math.cos(az)
+						my_y = dis*math.sin(az)
+
+						backbone_location = v.get(finding_light_farthest_info.id)
+
+						obj_x = my_x + n + backbone_location.x
+						obj_y = my_y + n + backbone_location.y
+
+						log("estimated position: x: ", obj_x, " y: ", obj_y)
+					}
+
+
+				}
 			}
 		}
 		# 	}
@@ -161,6 +198,7 @@ function step() {
             # right now, just have robot stop
             #log(id, " is in backbone")
             neighbors.broadcast("in_backbone", 1.0)
+			neighbors.broadcast("in_backbone_id", id)
             set_wheels(0.0,0.0)
         }
 		else{
@@ -177,14 +215,6 @@ function step() {
 
 }
 
-function obs_av()
-{
-  if(proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0)
-  gotop(0.0,2.0)
-
-  else
-  gotop(5.0,0.1)
-}
 
 function findlight(){
 	var counter = 0.0
@@ -212,59 +242,6 @@ function findlight(){
 }
 
 
-function collapseformation(){
-	#compute distance
-	distance = math.sqrt((x - pose.position.x) * (x - pose.position.x) + (y - pose.position.y) * (y - pose.position.y) + (z - pose.position.z) * (z - pose.position.z))
-	#compute angle
-	angle = math.atan((y - pose.position.y), (x - pose.position.x)) - pose.orientation.yaw
-	#get vector
-	var vector = math.vec2.newp(distance, angle)
-	#go to
-	goto(vector.x, vector.y)
-	#log("cf")
-
-}
-
-function cell() {
-  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
-  # Calculate accumulator
-  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
-  accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
-  if(neighbors.count() > 0)
-    math.vec2.scale(accum, 1.0 / neighbors.count())
-  # Move according to vector
-  goto((accum.x + light_vector.x)*40, (accum.y + light_vector.y)*40)
-}
-
-# Lennard-Jones interaction magnitude
-function lj_magnitude(dist, target, epsilon) {
-  return -(epsilon / dist) * ((target / dist)^4 - (target / dist)^2)*0.01
-}
-
-# Neighbor data to LJ interaction vector
-function lj_vector_kin(rid, data) {
-  return math.vec2.newp(lj_magnitude(data.distance, TARGET_KIN, EPSILON_KIN), data.azimuth)
-}
-
-# Neighbor data to LJ interaction vector
-function lj_vector_nonkin(rid, data) {
-  return math.vec2.newp(lj_magnitude(data.distance, TARGET_NONKIN, EPSILON_NONKIN), data.azimuth)
-}
-
-# Accumulator of neighbor LJ interactions
-function lj_sum(rid, data, accum) {
-  return math.vec2.add(data, accum)
-}
-
-# Calculate a vector based on light sensor readings
-function sum_light(rid , data , accum) {
-  lvec = math.vec2.newp(data.value , data.angle)
-  return math.vec2.add(lvec , accum)
-}
-
-# function connect_backbone(){
-#
-# }
 
 function get_closest_id(last_x, last_y){
 
@@ -288,6 +265,54 @@ function get_closest_id(last_x, last_y){
         })
 		#log(min_robot_id_final)
 		return min_robot_id_final
+}
+
+function get_furthest_id(){
+
+    max_dist = 0.0
+    #var min_robot_id_final = -1.0
+
+    neighbors.listen("finding_light",
+        function(vid, value, rid) {
+            neighbors.foreach(
+                function(robotid, data) {
+                if(rid==robotid){
+                    #log(id," to ", robotid, " is ", data.distance)
+                    if (data.distance > max_dist){
+                        #log(id," to ", robotid, " is min from ", min_dist)
+                        max_dist = data.distance
+                        max_robot_id = robotid
+                    }
+                } })
+            #log("The min robot is: ", min_robot_id)
+            max_robot_id_final = max_robot_id
+			max_robot_distance_final = max_dist
+        })
+		#log(min_robot_id_final)
+		var far_robot_info = {.id = max_robot_id_final, .distance = max_robot_distance_final}
+		return far_robot_info
+}
+
+function get_info_from_backbone(){
+
+    #var min_robot_id_final = -1.0
+
+    neighbors.listen("in_backbone_id",
+        function(vid, value, rid) {
+            neighbors.foreach(
+                function(robotid, data) {
+                if(rid==robotid){
+                    #log(id," to ", robotid, " is ", data.distance)
+                    backbone_dist = data.distance
+					backbone_azimuth = data.azimuth
+                } })
+            #log("The min robot is: ", min_robot_id)
+            # max_robot_id_final = max_robot_id
+			# max_robot_distance_final = max_dist
+        })
+		#log(min_robot_id_final)
+		var backbone_return_info = {.distance = backbone_dist, .azimuth = backbone_azimuth}
+		return backbone_return_info
 }
 
 function determine_gps(){
