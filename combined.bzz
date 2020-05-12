@@ -1,0 +1,332 @@
+include "include/vec2.bzz"
+
+v = stigmergy.create(1)
+#s = swarm.create(1)
+#in_backbone = 0.0
+var min_robot_id_final = -1.0
+
+# Lennard-Jones parameters
+TARGET_KIN     = 50.0
+EPSILON_KIN    = 500.0
+TARGET_NONKIN  = 40.0
+EPSILON_NONKIN = 100.0
+
+function init() {
+	#v = stigmergy.create(1)
+	#s.join()
+
+	s1 = swarm.create(1)
+	s1.select(id % 2 == 0)
+	s2 = s1.others(2)
+
+    x1 = 0.0
+	y1 = 0.0
+	yaw1 = 0.0
+    var info = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = 0.0}
+    v.put(id, info)
+    timestep = 0
+	v.put("sees_object", 0.0)
+	v.put("id_that_sees_object", -1.0)
+	cell_counter = 0
+}
+
+function step() {
+
+    i = v.get(id)
+    in_backbone = i.in_backbone
+
+	sees_obj = v.get("sees_object")
+	log(id, " ", sees_obj)
+	go_to_dist = 1000000.0
+	go_to_azimuth = 0.0
+
+	var gps = determine_gps()
+
+
+	if((sees_obj==1.0) and (in_backbone==0.0)){
+		# id_to_go_to = v.get("id_that_sees_object")
+		# neighbors.foreach(
+		# 	function(robotid, data) {
+		# 	if(rid==id_to_go_to){
+		# 		go_to_dist = data.distance
+		# 		go_to_azimuth = data.azimuth
+		# 	}})
+		#
+		# if(go_to_dist < 17){
+		# 	log(id, " forming cell lattice")
+		# 	cell()
+		# }
+		# else{
+		# 	x = 3*math.cos(go_to_azimuth)
+		# 	y = 3*math.sin(go_to_azimuth)
+		# 	log(id, " going to ", id_to_go_to)
+		# 	goto(x,y)
+		# }
+		if(cell_counter < 300){
+			log("creating cell")
+			cell()
+		}
+		else{
+		  var a = findlight()
+		  goto(a.x, a.y)
+		  log("finding light")
+		}
+		cell_counter = cell_counter + 1
+	}
+
+    else if(gps==0.0){
+        #this is where shape eploration and estimation would go
+        #set_wheels(0.0,0.0)
+        #neighbors.broadcast("need_backbone", 1.0)
+
+        var last_info = v.get(id)
+        #log(last_info)
+        var last_pos_x = last_info.x
+        var last_pos_y = last_info.y
+        var last_yaw = last_info.yaw
+        var last_backbone = last_info.in_backbone
+        #var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = -1.0}
+        #log(last_pos_x, last_pos_y)
+
+        if(in_backbone == 0.0){
+            closest_id = get_closest_id(last_pos_x, last_pos_y)
+    		log(id, " chose ", closest_id)
+            if(closest_id != -1){
+                log(id, " is adding ", closest_id, " to backbone")
+                var other_robots_info = v.get(closest_id)
+                var other_pos_x = other_robots_info.x
+                var other_pos_y = other_robots_info.y
+                var other_yaw = other_robots_info.yaw
+
+			    if(((proximity[0].value != 0 and (proximity[0].angle==light[0].angle)) or (proximity[1].value != 0 and (proximity[1].angle==light[1].angle)) or (proximity[2].value != 0 and (proximity[2].angle==light[2].angle)) or (proximity[6].value != 0 and (proximity[6].angle==light[6].angle)) or (proximity[7].value != 0 and (proximity[7].angle==light[7].angle))) ){
+					#gotop(0.0,0.0)
+					# v.put("sees_object", 1.0)
+					# v.put("id_that_sees_object", id)
+				}
+
+				var new_other_robot_info = { .x=other_pos_x, .y=other_pos_y, .yaw=other_yaw, .in_backbone = 1.0}
+	            v.put(closest_id, new_other_robot_info)
+
+	            var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = 1.0}
+	            v.put(id, no_gps_info)
+            }
+        }
+        else{
+            #var no_gps_info = { .x=last_pos_x, .y=last_pos_y, .yaw=last_yaw, .in_backbone = 0.0}
+            #v.put(id, no_gps_info)
+			#FIND OBJECT
+
+	        if(((proximity[0].value != 0 and (proximity[0].angle==light[0].angle)) or (proximity[1].value != 0 and (proximity[1].angle==light[1].angle)) or (proximity[2].value != 0 and (proximity[2].angle==light[2].angle)) or (proximity[6].value != 0 and (proximity[6].angle==light[6].angle)) or (proximity[7].value != 0 and (proximity[7].angle==light[7].angle))) )
+			{
+				#gotop(0.0,0.0)
+				v.put("sees_object", 1.0)
+				v.put("id_that_sees_object", id)
+				log(id, " found object")
+			}
+        }
+
+
+    }
+    else if(gps==1.0){
+        x1 = pose["position"]["x"]
+    	y1 = pose["position"]["y"]
+    	yaw1 = pose["orientation"]["yaw"]
+
+        var infoo = { .x=x1, .y=y1, .yaw=yaw1, .in_backbone = in_backbone}
+        v.put(id, infoo)
+
+        if(in_backbone == 0.0){
+            #chilling, walking around
+            neighbors.broadcast("free", 1.0)
+            obs_av()
+        }
+        else{
+            #successfully part of the backbone DONT MOVE
+            # right now, just have robot stop
+            log(id, " is in backbone")
+            neighbors.broadcast("in_backbone", 1.0)
+            set_wheels(0.0,0.0)
+        }
+    }
+
+}
+
+function obs_av()
+{
+  if(proximity[0].value != 0 or proximity[1].value != 0 or proximity[2].value != 0 or proximity[6].value != 0 or proximity[7].value != 0)
+  gotop(0.0,2.0)
+
+  else
+  gotop(5.0,0.1)
+}
+
+function findlight(){
+	var counter = 0.0
+	var max_light = 0.0
+	var max_light_angle = 0.0
+	var same = false
+	while (counter < 8.0){
+		var sensor_val = light[counter]
+		var l = sensor_val.value
+		var angle = sensor_val.angle
+		if (l > max_light){
+			max_light = l
+			max_light_angle = angle
+		}
+		counter = counter + 1.0
+	}
+
+	var vector = {
+		.x = (max_light) * math.cos(max_light_angle)*100,
+		.y = (max_light) * math.sin(max_light_angle)*100
+	}
+
+	#if doing my other solution, would be:
+	#var vector = {
+		#.ang = max_light_ang,
+		#.mag = max_light
+	#}
+
+	return vector
+
+}
+
+
+function collapseformation(){
+	#compute distance
+	distance = math.sqrt((x - pose.position.x) * (x - pose.position.x) + (y - pose.position.y) * (y - pose.position.y) + (z - pose.position.z) * (z - pose.position.z))
+	#compute angle
+	angle = math.atan((y - pose.position.y), (x - pose.position.x)) - pose.orientation.yaw
+	#get vector
+	var vector = math.vec2.newp(distance, angle)
+	#go to
+	goto(vector.x, vector.y)
+	#log("cf")
+
+}
+
+function cell() {
+  light_vector = reduce(light , sum_light , math.vec2.new(0.0, 0.0))
+  # Calculate accumulator
+  var accum = neighbors.kin().map(lj_vector_kin).reduce(lj_sum, math.vec2.new(0.0, 0.0))
+  accum = neighbors.nonkin().map(lj_vector_nonkin).reduce(lj_sum, accum)
+  if(neighbors.count() > 0)
+    math.vec2.scale(accum, 1.0 / neighbors.count())
+  # Move according to vector
+  goto((accum.x + light_vector.x)*40, (accum.y + light_vector.y)*40)
+}
+
+# Lennard-Jones interaction magnitude
+function lj_magnitude(dist, target, epsilon) {
+  return -(epsilon / dist) * ((target / dist)^4 - (target / dist)^2)*0.01
+}
+
+# Neighbor data to LJ interaction vector
+function lj_vector_kin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_KIN, EPSILON_KIN), data.azimuth)
+}
+
+# Neighbor data to LJ interaction vector
+function lj_vector_nonkin(rid, data) {
+  return math.vec2.newp(lj_magnitude(data.distance, TARGET_NONKIN, EPSILON_NONKIN), data.azimuth)
+}
+
+# Accumulator of neighbor LJ interactions
+function lj_sum(rid, data, accum) {
+  return math.vec2.add(data, accum)
+}
+
+# Calculate a vector based on light sensor readings
+function sum_light(rid , data , accum) {
+  lvec = math.vec2.newp(data.value , data.angle)
+  return math.vec2.add(lvec , accum)
+}
+
+# function connect_backbone(){
+#
+# }
+
+function get_closest_id(last_x, last_y){
+
+    min_dist = 100000.0
+    #var min_robot_id_final = -1.0
+
+    neighbors.listen("free",
+        function(vid, value, rid) {
+            neighbors.foreach(
+                function(robotid, data) {
+                if(rid==robotid){
+                    #log(id," to ", robotid, " is ", data.distance)
+                    if (data.distance < min_dist){
+                        #log(id," to ", robotid, " is min from ", min_dist)
+                        min_dist = data.distance
+                        min_robot_id = robotid
+                    }
+                } })
+            #log("The min robot is: ", min_robot_id)
+            min_robot_id_final = min_robot_id
+        })
+		#log(min_robot_id_final)
+		return min_robot_id_final
+}
+
+function determine_gps(){
+	var bottom_val = ground[0]["value"]
+	var gps= 1.0
+    if (bottom_val < 1.0){
+        gps = 0.0
+    }
+    return gps
+
+}
+
+function obstacle_avoidance(){
+	var magnitude = 5.0
+	var obstacle = read_proximity()
+	x = magnitude * math.cos(math.pi + obstacle)
+	y = magnitude * math.sin(math.pi + obstacle)
+
+	#if angle behind robot, ignore
+	if (obstacle == -math.pi){
+		#nothing is detected
+		set_wheels(magnitude, magnitude)
+	}
+	else {
+		#something is detected
+		#isolate cases near 0 to avoid errors
+		if (x<0.000001 and x>-0.000001){
+			x=0
+		}
+		if (y<0.000001 and y>-0.000001){
+			y=0
+		}
+
+		#sets center of the mass of the robot to half x and half y
+		#log(id, ": speedx: ",x," speed y: ", y)
+		gotoc(x/2, y/2)
+
+	}
+}
+
+function read_proximity(){
+	var counter = 0.0
+	var max_reading = 0.0
+	var obstacle_angle = -math.pi
+
+	while (counter < 8.0){
+		var sensor_val = proximity[counter].value
+		var sensor_angle = proximity[counter].angle
+		if(sensor_val > max_reading){
+			max_reading = sensor_val
+			obstacle_angle = sensor_angle
+			#log("Obstacle infront of robot ", id, " at sensor ", counter)
+		}
+		counter = counter + 1.0
+	}
+	return obstacle_angle
+
+}
+
+function destroy(){}
+
+function reset(){}
