@@ -79,12 +79,12 @@
     </box>
 
     <!-- object to identify-->
-    <box id="object_1" size="0.3,0.3,0.5" movable="false" >
+    <box id="object_1" size="0.3,0.3,0.2" movable="false" >
       <body position="0.5,0.5,0" orientation="0,0,0"/>
     </box>
 
     <light id="light"
-           position="0.5,0.5,0.7"
+           position="0.5,0.5,0.5"
            orientation="0,0,0"
            color="yellow"
            intensity="3.0"
@@ -97,9 +97,9 @@
 
     <distribute>
       <position method="uniform" min="-2,-0.5,0" max="-1.5,0.5,0" />
-      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0" />
+      <orientation method="gaussian" mean="0,0,0" std_dev="360,0,0"/>
       <entity quantity="10" max_trials="100">
-        <kheperaiv id="kiv" rab_data_size="1000">
+        <kheperaiv id="kiv" rab_data_size="1000" rab_range='1000' >
           <controller config="explore" />
         </kheperaiv>
       </entity>
@@ -118,7 +118,7 @@
   <!-- * Media * -->
   <!-- ********* -->
   <media>
-    <range_and_bearing id="rab" />
+    <range_and_bearing id="rab" check_occlusions ="false"/>
     <led id="leds" />
     <led id="light" />
   </media>
